@@ -4,9 +4,11 @@ type ('v, 'w) t =
   | Node of 'v * ('v,'w) t * ('v,'w) t
   | Leaf of 'w [@@deriving show]
 
-let return w = assert false
+let return w =
+Leaf w;; 
 
-let combine v l1 l2 = assert false
+let combine v l1 l2 = 
+  Node(v,l1,l2);;
 
 let%test "n" =
   let l1 = return 1 in
@@ -16,14 +18,21 @@ let%test "n" =
   let n2 = combine 5 n1 l3 in
   Stdlib.(n2 = (Node(5,Node(4, Leaf 1, Leaf 2), Leaf 3)))
 
-let is_leaf = assert false
+let is_leaf = (fun l -> 
+match l with
+| Leaf w -> true
+| _ -> false ) 
 
 let%test "leaf1" = is_leaf (Leaf 1)
 let%test "leaf2" = is_leaf (Node (1, Leaf 1, Leaf 1)) |> not
 
 
 
-let get_leaf_data = assert false
+let get_leaf_data = (fun l -> 
+match l with
+|Leaf w -> Some w
+|_ -> None) 
+
 
 let%test "gld1" =  match get_leaf_data (Leaf 1) with
   | None -> false
@@ -35,7 +44,10 @@ let%test "gld2" = match get_leaf_data (Node (1, Leaf 2, Leaf 3)) with
   | _ -> false
 
 
-let get_node_data = assert false
+let get_node_data = (fun l -> 
+match l with
+|Node(v,l1,l2) -> Some v
+| _ -> None)
 
 let%test "gnd1" =  match get_node_data (Leaf 1) with
   | None -> true
@@ -47,7 +59,12 @@ let%test "gnd2" = match get_node_data (Node (1, Leaf 2, Leaf 3)) with
   | Some o -> Int.(o = 1)
 
 
-let map (f,g) d = assert false
+let rec map (f,g) d = match d with
+| Leaf -> Leaf (g w)
+| Node (v,l1,l2) -> let fonc1 = f v in
+                    let fonc2 = map (f,g) l1 in
+                    let fonc3 = map (f,g) l2 in
+                    Node(fonc1,fonc2,fonc2)
 
 let%test "map" =
   let l1 = return 1 in
@@ -61,7 +78,10 @@ let%test "map" =
   Stdlib.(n3 = (Node("fivefive",Node("fourfour", Leaf 2, Leaf 4), Leaf 6)))
 
 
-let iter (f,g) d = assert false
+let iter (f,g) d = ((f:('v -> unit')),(g:('w -> unit'))) = (fun l -> 
+                                                            match l with
+                                                            |Leaf w -> g w
+                                                            |Node(v,l1,l2) -> f v; (iter (f,g)) l1; (iter (f,g)) l2;)
 
 
 type ('v, 'w) z = TZ of ('v,'w) context * ('v,'w) t
