@@ -91,17 +91,39 @@ and ('v,'w) context =
   | RNContext of ('v,'w) t * 'v * ('v,'w) context [@@deriving show]
 
 
+(*la fonction go_left_tree va prendre en argument la valeur stockée dans le 
+noeud parent du sous arbre droit, le sous-arbre droit et le zipper focus sur le sous
+arbre gauche. Si le zipper focus donné est bien sur une feuille,
+on encapsule le tout dans un contexte gauche et on renvoie le zipper focus sur la feuille.
+Sinon on continue a descendre récursivement dans le sous-arbre gauche en appelant la fonction
+sur le zipper focus du noeud gauche, le nouvel sous-arbre arbre droit et le nouveau noeud*)
+let rec go_left_tree v r z = match z with
+|TZ(c, Leaf w) -> TZ(LNContext(v,c,r),Leaf w)
+|TZ(c, Node(vv,ll,rr)) -> go_left_tree vv rr (TZ(c,ll))
+|_ -> failwith "zipper invalide"
 
-let from_tree d = assert false
+(*la fonction focus_first_leaf utilise la fonction go_left_tree pour descendre efficacement vers la gauche de l'arbre
+sans perdre les contextes précédents*)
+let focus_first_leaf d = match d with
+|Leaf w -> TZ (Top,(Leaf w))
+|Node (v,l,r) -> go_left_tree v r (focus_first_leaf l)
+
+let change z s = match z with
+|TZ (Top,_) -> TZ (Top,s)
+|TZ (LNContext(v,c,r),t) -> TZ (LNContext(v,c,r), s)
+|TZ (RNContext(l,v,c),t) -> TZ (RNContext(l,v,c), s)
+| _ -> failwith "change : type de z non conforme"
+
+let change_up z v = match z with
+|TZ (c,(Leaf w)) -> TZ (c,(Leaf v))
+|TZ (c,Node(a,l1,l2)) -> TZ (c,Node(v,l1,l2))
 
 
-
-let change z s = assert false
-
-let change_up z v = assert false
-
-
-let go_down z = assert false
+(*si on est focus sur une feuille alors on retourne none sinon, le nouveau zipper sera constituer du context droit contenant
+le noeud l2, le père v et son contexte qui c. le focus est maintenant sur l1*)
+let go_down z = match z with
+|TZ(_,Leaf w) -> None
+|TZ(c,Node(v,l1,l2)) -> Some (TZ(RNContext(l2,v,c),l1))
 
 let%test "gd1" =
   let l1 = return 1 in
@@ -137,7 +159,13 @@ let%test "gd3" =
   | Some _ -> false
   | None -> true
 
-let go_up z = assert false
+(*le nouveau context sera le context du père qui est c, il faut faire le noeud mtn: le noeud aura pour racine la valueur
+du noeud père qui est v, le sous arbre t si on est focus sur un noeud à gauche (ou l si on est focus sur un noeud à droite) et
+le sous arbre r ou l en fonction du contexte*)
+let go_up z = match z with
+|TZ (Top, t) -> None
+|TZ (LNContext(v,c,r),t) -> Some (TZ(c,Node(v,t,r)))
+|TZ (RNContext(l,v,c),t) -> Some (TZ(c,Node(v,l,t)))
 
 let%test "gu1" =
   let z = TZ(RNContext(Leaf 1, "four", LNContext ("five", Top,Leaf 3)), Leaf 2) in
