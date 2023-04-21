@@ -90,6 +90,8 @@ and ('v,'w) context =
   | LNContext of 'v * ('v,'w) context * ('v,'w) t
   | RNContext of ('v,'w) t * 'v * ('v,'w) context [@@deriving show]
 
+(*focus sur le root*)
+let from_tree t = TZ(Top,t);
 
 (*la fonction go_left_tree va prendre en argument la valeur stockée dans le 
 noeud parent du sous arbre droit, le sous-arbre droit et le zipper focus sur le sous
@@ -97,6 +99,7 @@ arbre gauche. Si le zipper focus donné est bien sur une feuille,
 on encapsule le tout dans un contexte gauche et on renvoie le zipper focus sur la feuille.
 Sinon on continue a descendre récursivement dans le sous-arbre gauche en appelant la fonction
 sur le zipper focus du noeud gauche, le nouvel sous-arbre arbre droit et le nouveau noeud*)
+
 let rec go_left_tree v r z = match z with
 |TZ(c, Leaf w) -> TZ(LNContext(v,c,r),Leaf w)
 |TZ(c, Node(vv,ll,rr)) -> go_left_tree vv rr (TZ(c,ll))
@@ -123,7 +126,7 @@ let change_up z v = match z with
 le noeud l2, le père v et son contexte qui c. le focus est maintenant sur l1*)
 let go_down z = match z with
 |TZ(_,Leaf w) -> None
-|TZ(c,Node(v,l1,l2)) -> Some (TZ(RNContext(l2,v,c),l1))
+|TZ(c,Node(v,l,r)) -> Some (TZ(LNContext(v,c,r),l))
 
 let%test "gd1" =
   let l1 = return 1 in
@@ -185,7 +188,10 @@ let%test "gu3" =
   | Some _  -> false
   | None -> true
 
-let go_left z = assert false
+let go_left z = match z failwith
+|TZ (Top,t) -> None
+|TZ (LNContext(v,c,r),t) -> None
+|TZ (RNContext(l,v,c),t) -> Some (TZ(c,l))
 
 let%test "gl1" =
   let z = TZ(RNContext(Leaf 1, "four", LNContext ("five", Top,Leaf 3)), Leaf 2) in
@@ -199,8 +205,10 @@ let%test "gl2" =
   | Some _ -> false
   | None -> true
 
-let go_right z = assert false
-
+let go_right z = match z with
+|TZ (Top,t) -> None
+|TZ (LNContext(v,c,r),t) -> Some (TZ(c,r))
+|TZ (RNContext(l,v,c),t) -> None
 
 let%test "gr1" =
   let z = TZ(LNContext("four", LNContext ("five", Top,Leaf 3), Leaf 2), Leaf 1) in
@@ -215,7 +223,7 @@ let%test "gl2" =
   | None -> true
 
 
-let reflexive_transitive f d = assert false
+let reflexive_transitive f d = 
 
 let%test "rf1" =
   let z = TZ(RNContext(Leaf 1, "four", LNContext ("five", Top,Leaf 3)), Leaf 2) in
@@ -229,8 +237,6 @@ let%test "rf2" =
 let%test "rf3" =
   let z = TZ( Top,  Node("five",Node("four", Leaf 1, Leaf 2), Leaf 3)) in
   Stdlib.(reflexive_transitive go_up z = z)
-
-let focus_first_leaf t = assert false
 
 
 let%test "ffl1" =
